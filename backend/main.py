@@ -19,59 +19,70 @@ app.add_middleware(
 
 @app.get("/state")
 def get_state():
-    return {
-        "board": game.board,
-        "current": game.current,
-        "score": game.score 
-    }
+    return game.get_state()
 
 @app.post("/play")
 def play(x: int, y: int):
     result = game.play(x, y)
-    logger.info("/play called x=%s y=%s result=%s", x, y, {k: result.get(k) for k in ("captured","error","nextPlayer")})
+    logger.info("/play called x=%s y=%s result=%s", x, y, result)
     return result
 
-
-@app.post("/play_debug")
-def play_debug(x: int, y: int):
-    result = game.debug_play(x, y)
-    # Log summary of debug info (which squares captured and counts)
-    try:
-        dbg = result.get("debug", [])
-        summary = []
-        for idx, s in enumerate(dbg):
-            summary.append({"idx": idx, "myCount": s.get("myCount"), "opponentPos": s.get("opponentPos"), "captured": s.get("captured")})
-        logger.info("/play_debug x=%s y=%s summary=%s", x, y, summary)
-    except Exception:
-        logger.exception("Error while logging play_debug result")
+@app.post("/move")
+def move_piece(fx: int, fy: int, tx: int, ty: int):
+    result = game.move_piece(fx, fy, tx, ty)
+    logger.info("/move called fx=%s fy=%s tx=%s ty=%s result=%s", fx, fy, tx, ty, result)
     return result
-
 
 @app.post("/play_ai")
-def play_ai(x: int, y: int, ai_player: int = 2):
-    """Play a human move at x,y then (if configured) let AI (ai_player) play immediately.
-    Returns both outcomes and final board state.
+def play_ai(x: int = -1, y: int = -1, fx: int = -1, fy: int = -1, tx: int = -1, ty: int = -1, ai_player: int = 2):
     """
-    human = game.play(x, y)
-    logger.info("/play_ai human played x=%s y=%s result=%s", x, y, {k: human.get(k) for k in ("captured","error","nextPlayer")})
+    Unified endpoint for Human vs AI.
+    If Phase is PLACEMENT, Human uses x,y (fx,fy,tx,ty ignored).
+    If Phase is MOVEMENT, Human uses fx,fy,tx,ty (x,y ignored).
+    Then AI plays immediately if it's AI's turn.
+    """
+    human_res = {}
+    h_type = "place" if game.phase == "PLACEMENT" else "move"
+    if game.phase == "PLACEMENT":
+        if x == -1 or y == -1:
+             return {"error": "Missing coordinates for placement"}
+        human_res = game.play(x, y)
+    elif game.phase == "MOVEMENT":
+        if fx == -1: # check if movement coords provided
+             return {"error": "Missing coordinates for movement"}
+        human_res = game.move_piece(fx, fy, tx, ty)
+    
+    human = {"type": h_type, "result": human_res, "error": human_res.get("error")}
+    
+    logger.info("/play_ai human action result=%s", human)
 
     ai_result = None
-    ai_move = None
     # if it's AI's turn, compute and play
-    if game.current == ai_player:
+    if game.current == ai_player and not human.get("error"):
         mv = game.ai_move(ai_player)
         if mv:
-            ax, ay = mv
-            ai_res = game.play(ax, ay)
-            ai_result = {"x": ax, "y": ay, "result": ai_res}
-            logger.info("/play_ai AI played x=%s y=%s result=%s", ax, ay, {k: ai_res.get(k) for k in ("captured","nextPlayer")})
+            if game.phase == "PLACEMENT":
+                # mv is (x, y)
+                ax, ay = mv
+                ai_res = game.play(ax, ay)
+                ai_result = {"type": "place", "x": ax, "y": ay, "result": ai_res}
+            elif game.phase == "MOVEMENT":
+                # mv is {"from": (r,c), "to": (nx,ny)}
+                f, t = mv["from"], mv["to"]
+                ai_res = game.move_piece(f[0], f[1], t[0], t[1])
+                ai_result = {"type": "move", "from": f, "to": t, "result": ai_res}
+            
+            logger.info("/play_ai AI played result=%s", ai_result)
 
+    state = game.get_state()
     return {
         "afterHuman": human,
         "afterAI": ai_result,
-        "board": game.board,
-        "nextPlayer": game.current,
-        "score": game.score,
+        "board": state["board"],
+        "nextPlayer": state["current"],
+        "score": state["score"],
+        "phase": state["phase"],
+        "pieces_placed": state["pieces_placed"]
     }
 
 @app.post("/reset")
