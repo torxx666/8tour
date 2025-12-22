@@ -13,7 +13,7 @@ class Game:
         self.score = {WHITE: 0, BLACK: 0}
         self.phase = PHASE_PLACEMENT
         self.pieces_placed = {WHITE: 0, BLACK: 0}
-        self.MAX_PIECES = 18
+        self.MAX_PIECES = 6
 
     def can_place(self, x, y):
         return self.board[x][y] == EMPTY
@@ -152,7 +152,7 @@ class Game:
         self.current = BLACK if player == WHITE else WHITE
         
         return {
-            "board": self.board,
+            "board": [row[:] for row in self.board],
             "captured": captured,
             "winner": winner,
             "nextPlayer": self.current,
@@ -161,7 +161,7 @@ class Game:
 
     def get_state(self):
         return {
-            "board": self.board,
+            "board": [row[:] for row in self.board],
             "current": self.current,
             "phase": self.phase,
             "pieces_placed": self.pieces_placed,

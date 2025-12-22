@@ -1,15 +1,14 @@
 import React from "react";
 
-export default function Board({ board, onCellClick, selected, aiHighlight, destHighlight, capturedHighlight, capturedStatic, lastMove }) {
+export default function Board({ board, onCellClick, selected, aiHighlight, destHighlight, capturedHighlight, capturedStatic, lastMove, isTouchDevice, validMoves, phase }) {
   if (!board || !Array.isArray(board)) return null;
 
   return (
     <div className="board-grid">
       {board.map((row, i) =>
         row.map((cell, j) => {
-          let cellClass = "cell empty";
-          if (cell === 1) cellClass = "cell white";
-          if (cell === 2) cellClass = "cell black";
+          const isWhiteTile = (i + j) % 2 === 0;
+          let cellClass = `cell ${isWhiteTile ? "white" : "black"}`;
 
           const isSelected = selected && selected.x === i && selected.y === j;
           if (isSelected) cellClass += " selected";
@@ -31,28 +30,33 @@ export default function Board({ board, onCellClick, selected, aiHighlight, destH
           }
 
           // Ghost Highlights (Last Move)
-          if (lastMove && lastMove.fx === i && lastMove.fy === j) {
-            cellClass += " ghost-source";
-          }
-          if (lastMove && lastMove.tx === i && lastMove.ty === j) {
-            cellClass += " ghost-dest";
-          }
+          const isLastFrom = lastMove && lastMove.fx === i && lastMove.fy === j;
+          const isLastTo = lastMove && lastMove.tx === i && lastMove.ty === j;
+
+          if (isLastFrom) cellClass += " last-from";
+          if (isLastTo) cellClass += " last-to";
+
+          // Valid target halo
+          const isValidTarget = (phase === "PLACEMENT" && cell === 0) ||
+            (validMoves && validMoves.some(m => m.x === i && m.y === j));
+          if (isValidTarget) cellClass += " can-drop";
 
           return (
             <div
               key={`${i}-${j}`}
               onClick={() => onCellClick(i, j)}
-              onTouchStart={(e) => {
-                e.preventDefault();
-                onCellClick(i, j);
-              }}
               className={cellClass}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") onCellClick(i, j);
               }}
-            />
+            >
+              <div className="click-capture" />
+              {cell !== 0 && (
+                <div className={`piece player${cell}`} />
+              )}
+            </div>
           );
         })
       )}
