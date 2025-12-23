@@ -84,9 +84,16 @@ body {
 
 @media (max-width: 1100px) {
   .dashboard {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     height: auto;
     max-height: none;
+    padding-bottom: 2rem;
+  }
+  
+  .move-log {
+    width: 100%;
+    max-width: 500px;
+    height: 400px; /* Fixed height for log on mobile */
   }
 }
 
