@@ -1,7 +1,11 @@
 import React from "react";
 
-export default function Board({ board, onCellClick, selected, aiHighlight, destHighlight, capturedHighlight, capturedStatic, lastMove, isTouchDevice, validMoves, phase }) {
+export default function Board({ board, onCellClick, selected, aiHighlight, destHighlight, capturedHighlight, capturedStatic, lastMove, isTouchDevice, validMoves, phase, triggerVibration }) {
   if (!board || !Array.isArray(board)) return null;
+
+  const handleTouchStart = (i, j) => {
+    if (triggerVibration) triggerVibration("light");
+  };
 
   return (
     <div className="board-grid">
@@ -45,6 +49,7 @@ export default function Board({ board, onCellClick, selected, aiHighlight, destH
             <div
               key={`${i}-${j}`}
               onClick={() => onCellClick(i, j)}
+              onTouchStart={() => handleTouchStart(i, j)}
               className={cellClass}
               role="button"
               tabIndex={0}

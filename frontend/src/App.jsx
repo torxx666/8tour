@@ -39,6 +39,7 @@ function App() {
   const [aiDifficulty, setAiDifficulty] = useState("initie"); // 'novice', 'initie', 'expert'
   const [aiStatus, setAiStatus] = useState(null);
   const [moveCount, setMoveCount] = useState(0);
+  const [maxPieces, setMaxPieces] = useState(6);
   const [gameStartTime, setGameStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);
 
@@ -50,6 +51,7 @@ function App() {
   const [soundEnabled, setSoundEnabled] = useState(soundEnabledInit);
 
   const logEndRef = useRef(null);
+  const logContainerRef = useRef(null);
   const audioCtxRef = useRef(null);
   const lastPhaseRef = useRef(null);
 
@@ -195,7 +197,17 @@ function App() {
   const triggerPhaseSignal = () => {
     setShowPhaseOverlay(true);
     playThud(); // Physical notification
+    triggerVibration("strong");
     setTimeout(() => setShowPhaseOverlay(false), 2500);
+  };
+
+  const triggerVibration = (type = "light") => {
+    if (!("vibrate" in navigator)) return;
+    try {
+      if (type === "light") navigator.vibrate(10);
+      else if (type === "medium") navigator.vibrate(30);
+      else if (type === "strong") navigator.vibrate([50, 30, 50]);
+    } catch (e) { }
   };
 
   const fetchState = async () => {
@@ -264,7 +276,9 @@ function App() {
   }, [view, gameStartTime, winner]);
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
   }, [moveHistory]);
 
   const handleCellClick = async (x, y) => {
@@ -285,6 +299,7 @@ function App() {
     nextBoard[x][y] = current;
     setBoard(nextBoard);
     playThud();
+    triggerVibration("medium");
     setPiecesPlaced(prev => ({ ...prev, [current]: prev[current] + 1 }));
     setLastMove(null);
     await sendMove({ type: "place", x, y });
@@ -370,6 +385,7 @@ function App() {
     nextBoard[move.tx][move.ty] = player;
     setBoard(nextBoard);
     playSlide();
+    triggerVibration("light");
 
     await sleep(800);
     setAIHighlight(null);
@@ -379,6 +395,7 @@ function App() {
       const victims = captured.map(p => ({ x: p[0], y: p[1] }));
       setCapturedStatic([]);
       setCapturedHighlight(victims);
+      triggerVibration("strong");
       await sleep(1500);
       setCapturedHighlight([]);
     }
@@ -487,6 +504,7 @@ function App() {
     }
     if (result.winner) setWinner(result.winner);
     setCurrent(result.current ?? 1);
+    if (result.max_pieces !== undefined) setMaxPieces(result.max_pieces);
     if (result.move_count !== undefined) setMoveCount(result.move_count);
     if (result.start_time !== undefined) setGameStartTime(result.start_time);
   };
@@ -651,7 +669,7 @@ function App() {
             <div className="phase-overlay">
               <div className="phase-content">
                 <div className="phase-msg">{phase === "PLACEMENT" ? "PLACEMENT" : "MOUVEMENT"}</div>
-                <div className="phase-sub">{phase === "PLACEMENT" ? "Placez vos 6 pièces" : "Capturez l'adversaire"}</div>
+                <div className="phase-sub">{phase === "PLACEMENT" ? `Placez vos ${maxPieces} pièces` : "Capturez l'adversaire"}</div>
               </div>
             </div>
           )}
@@ -691,6 +709,7 @@ function App() {
                 isTouchDevice={isTouchDevice}
                 validMoves={validMoves}
                 phase={phase}
+                triggerVibration={triggerVibration}
               />
               {aiStatus && (
                 <div className="ai-thinking-notif" style={{ marginTop: "1rem", fontSize: "0.9rem", color: "var(--accent-orange)", fontWeight: "bold", fontStyle: "italic", animation: "pulse 1.5s infinite" }}>
@@ -729,7 +748,7 @@ function App() {
               </div>
               <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", marginBottom: "1rem" }}>Historique des coups</h2>
               <div className="side-content">
-                <div className="log-container" style={{ flex: 1 }}>
+                <div className="log-container" style={{ flex: 1 }} ref={logContainerRef}>
                   {moveHistory.length === 0 && (
                     <div style={{ color: "var(--text-dim)", fontStyle: "italic", textAlign: "center", marginTop: "2rem" }}>Aucun coup joué pour l'instant</div>
                   )}
@@ -784,7 +803,7 @@ function App() {
             <div className="rules-content">
               <p>🎯 <strong>But</strong> : Réduire l'adversaire à moins de 3 pions.</p>
               <ul>
-                <li><strong>Phase 1 : Placement</strong> (6 pions chacun). Posez alternativement vos pions sur les cases vides.</li>
+                <li><strong>Phase 1 : Placement</strong> ({maxPieces} pions chacun). Posez alternativement vos pions sur les cases vides.</li>
                 <li><strong>Phase 2 : Mouvement</strong>. Défacez vos pions de 1 ou 2 cases vers une case vide.</li>
                 <li><strong>Capture</strong> : Entourez un pion ennemi sur 3 côtés pour l'éliminer.</li>
               </ul>

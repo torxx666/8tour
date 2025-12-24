@@ -18,7 +18,7 @@ class Game:
         self.phase = PHASE_PLACEMENT
         self.pieces_placed = {WHITE: 0, BLACK: 0}
         self.is_fast = False
-        self.MAX_PIECES = 6
+        self.MAX_PIECES = 18
         self.last_event = None
         self.event_id = 0
         self.last_board_snapshot = None # For loop prevention
@@ -235,6 +235,7 @@ class Game:
             "last_event": self.last_event,
             "event_id": self.event_id,
             "ai_difficulty": self.ai_difficulty,
+            "max_pieces": self.MAX_PIECES,
             "move_count": self.move_count,
             "start_time": self.start_time
         }
